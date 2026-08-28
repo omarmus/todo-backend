@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TodoService } from './todo.service';
+import { TodoService } from './infrastructure/prisma-todo.repository';
 
 describe('TodoService', () => {
   let service: TodoService;
