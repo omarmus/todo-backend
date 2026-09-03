@@ -5,5 +5,6 @@ export class Todo {
     public readonly description: string,
     public readonly completed: boolean,
     public readonly userId: string,
+    public readonly dueDate: Date | null,
   ) {}
 }

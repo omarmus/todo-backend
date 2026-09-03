@@ -1,6 +1,8 @@
 import { Link, useLocation } from "react-router";
 import type { ReactNode } from "react";
 import { useAuth } from "../hooks/useAuth";
+import { useNotifications } from "../hooks/useNotifications";
+import NotificationBell from "./NotificationBell";
 
 const nav = [
   { to: "/todos", label: "Tareas" },
@@ -10,6 +12,8 @@ const nav = [
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
+  const { notifications, unread, connected, markAsRead, markAllAsRead } =
+    useNotifications();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -30,7 +34,14 @@ export default function Layout({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <NotificationBell
+              notifications={notifications}
+              unread={unread}
+              connected={connected}
+              onMarkRead={markAsRead}
+              onMarkAllRead={markAllAsRead}
+            />
             <span className="text-sm text-gray-500">{user?.email}</span>
             <button
               onClick={logout}

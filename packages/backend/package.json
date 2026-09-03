@@ -18,16 +18,20 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed": "npx tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@nestjs/common": "^11.0.1",
-    "@nestjs/config": "^4.0.4",
-    "@nestjs/core": "^11.0.1",
+    "@nestjs/common": "^12.0.1",
+    "@nestjs/config": "^12.0.0",
+    "@nestjs/core": "^12.0.1",
     "@nestjs/jwt": "^12.0.1",
     "@nestjs/passport": "^12.0.0",
-    "@nestjs/platform-express": "^11.0.1",
-    "@nestjs/swagger": "^11.4.7",
+    "@nestjs/platform-express": "^12.0.1",
+    "@nestjs/swagger": "^12.0.1",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "argon2": "^0.45.1",
@@ -44,9 +48,11 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
-    "@nestjs/cli": "^11.0.0",
-    "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.1",
+    "@nestjs/cli": "^12.0.0",
+    "@nestjs/schematics": "^12.0.0",
+    "@nestjs/testing": "^12.0.1",
+    "@swc/core": "^1.16.1",
+    "@swc/jest": "^0.2.39",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
@@ -64,6 +70,7 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },
@@ -76,14 +83,14 @@
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.tsx?$": "ts-jest"
+      "^.+\\.(t|j)sx?$": "@swc/jest"
     },
     "moduleNameMapper": {
       "^src/(.*)$": "<rootDir>/$1",
-      "^@nestjs/jwt$": "<rootDir>/__mocks__/@nestjs/jwt.js",
-      "^@nestjs/passport$": "<rootDir>/__mocks__/@nestjs/passport.js",
-      "^passport-jwt$": "<rootDir>/__mocks__/passport-jwt.js",
-      "^argon2$": "<rootDir>/__mocks__/argon2.js"
+      "^@nestjs/jwt$": "<rootDir>/../__mocks__/@nestjs/jwt.js",
+      "^@nestjs/passport$": "<rootDir>/../__mocks__/@nestjs/passport.js",
+      "^passport-jwt$": "<rootDir>/../__mocks__/passport-jwt.js",
+      "^argon2$": "<rootDir>/../__mocks__/argon2.js"
     },
     "transformIgnorePatterns": [
       "node_modules/(?!.*(@nestjs|@prisma|passport|passport-jwt|jsonwebtoken))"

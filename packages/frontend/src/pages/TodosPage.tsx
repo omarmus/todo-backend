@@ -8,6 +8,7 @@ interface Todo {
   title: string;
   description: string | null;
   completed: boolean;
+  dueDate: string | null;
 }
 
 export default function TodosPage() {
@@ -16,9 +17,11 @@ export default function TodosPage() {
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [dueDate, setDueDate] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
@@ -44,11 +47,16 @@ export default function TodosPage() {
     try {
       await api("/todo", {
         method: "POST",
-        body: { title: title.trim(), description: description.trim() || undefined },
+        body: {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          dueDate: dueDate || undefined,
+        },
         token,
       });
       setTitle("");
       setDescription("");
+      setDueDate("");
       showToast("Tarea creada", "success");
       load();
     } catch (err) {
@@ -85,6 +93,7 @@ export default function TodosPage() {
     setEditingId(todo.id);
     setEditTitle(todo.title);
     setEditDescription(todo.description ?? "");
+    setEditDueDate(todo.dueDate ? todo.dueDate.split("T")[0] : "");
   };
 
   const handleSave = async () => {
@@ -95,6 +104,7 @@ export default function TodosPage() {
         body: {
           title: editTitle.trim(),
           description: editDescription.trim() || undefined,
+          dueDate: editDueDate || null,
         },
         token,
       });
@@ -103,6 +113,11 @@ export default function TodosPage() {
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Error al guardar", "error");
     }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("es-AR", { day: "2-digit", month: "short" });
   };
 
   const completed = todos.filter((t) => t.completed).length;
@@ -119,22 +134,34 @@ export default function TodosPage() {
         </div>
       </div>
 
-      <form onSubmit={handleCreate} className="mb-6 flex gap-3">
-        <input
-          type="text"
-          placeholder="Nueva tarea..."
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="text"
-          placeholder="Descripción (opcional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-64 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      <form onSubmit={handleCreate} className="mb-6 flex gap-3 items-end">
+        <div className="flex-1 flex flex-col gap-1">
+          <input
+            type="text"
+            placeholder="Nueva tarea..."
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="w-48 flex flex-col gap-1">
+          <input
+            type="text"
+            placeholder="Descripción"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div className="w-40 flex flex-col gap-1">
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
         <button
           type="submit"
           disabled={submitting || !title.trim()}
@@ -186,6 +213,16 @@ export default function TodosPage() {
                     }}
                     className="w-full px-2 py-1 border border-blue-200 rounded text-xs text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSave();
+                      if (e.key === "Escape") setEditingId(null);
+                    }}
+                    className="w-full px-2 py-1 border border-blue-200 rounded text-xs text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                   <div className="flex gap-2">
                     <button
                       onClick={handleSave}
@@ -226,11 +263,24 @@ export default function TodosPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                     </svg>
                   </div>
-                  {todo.description && (
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {todo.description}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-3 mt-0.5">
+                    {todo.description && (
+                      <p className="text-xs text-gray-400">
+                        {todo.description}
+                      </p>
+                    )}
+                    {todo.dueDate && (
+                      <span
+                        className={`text-xs px-1.5 py-0.5 rounded ${
+                          !todo.completed && new Date(todo.dueDate) < new Date()
+                            ? "bg-red-100 text-red-600"
+                            : "bg-gray-100 text-gray-500"
+                        }`}
+                      >
+                        {formatDate(todo.dueDate)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
 

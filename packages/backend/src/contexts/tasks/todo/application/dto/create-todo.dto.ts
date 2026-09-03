@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateTodoDto {
@@ -10,11 +10,18 @@ export class CreateTodoDto {
   @IsNotEmpty()
   title: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Descripción de la tarea',
     example: 'Comprar pan en la tienda cercana',
   })
   @IsString()
   @IsOptional()
   description?: string;
+
+  @ApiPropertyOptional({
+    description: 'Fecha límite de la tarea (ISO 8601)',
+    example: '2026-09-15T10:00:00.000Z',
+  })
+  @IsOptional()
+  dueDate?: string;
 }

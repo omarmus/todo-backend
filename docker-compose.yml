@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: todo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:8
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ping:1})"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    ports:
+      - "3050:3050"
+    environment:
+      PORT: 3050
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/todo?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      NOTIFICATION_SERVICE_URL: http://notification:3060
+      CORS_ORIGIN: http://localhost:3040
+    depends_on:
+      postgres:
+        condition: service_healthy
+      notification:
+        condition: service_started
+
+  notification:
+    build:
+      context: .
+      dockerfile: packages/notification/Dockerfile
+    ports:
+      - "3060:3060"
+    environment:
+      PORT: 3060
+      MONGODB_URI: mongodb://mongodb:27017/notifications
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
+      args:
+        VITE_API_BASE: http://localhost:3050
+        VITE_WS_URL: http://localhost:3060
+    ports:
+      - "3040:3040"
+    depends_on:
+      - backend
+      - notification
+
+volumes:
+  pgdata:
+  mongodata:

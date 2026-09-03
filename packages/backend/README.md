@@ -10,9 +10,54 @@ Backend de tareas construido con NestJS, Prisma ORM y PostgreSQL, siguiendo los 
 
 ## Requisitos previos
 
-- Node.js >= 18
+- Node.js >= 20
 - pnpm
 - PostgreSQL corriendo localmente (o una instancia en la nube)
+
+### Instalar PostgreSQL
+
+**macOS (Homebrew):**
+```bash
+brew install postgresql@16
+brew services start postgresql@16
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib
+
+# Iniciar servicio
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+
+# Crear usuario y base de datos
+sudo -u postgres psql -c "CREATE USER postgres WITH PASSWORD 'postgres';"
+sudo -u postgres psql -c "ALTER USER postgres CREATEDB SUPERUSER;"
+sudo -u postgres psql -c "CREATE DATABASE todo OWNER postgres;"
+```
+
+**Windows:**
+1. Descargar el instalador desde https://www.postgresql.org/download/windows/
+2. Ejecutar el `.exe` y seguir el asistente
+3. Seleccionar puerto `5432`, establecer contraseña del usuario `postgres`
+4. Marcar para iniciar en boot
+5. Crear la base de datos desde pgAdmin (se instala junto con PostgreSQL) o PowerShell:
+```powershell
+# Abrir psql (está en PATH tras instalar)
+psql -U postgres -c "CREATE DATABASE todo;"
+```
+
+**Verificar (todos los SO):**
+```bash
+psql -U postgres -c "SELECT version();"
+# PostgreSQL 16.x ...
+```
+
+Si la conexión por defecto falla (requiere password), prueba con:
+```bash
+psql -U postgres -h localhost -c "SELECT 1;"
+```
 
 ## Instalación y configuración
 

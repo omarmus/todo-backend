@@ -25,4 +25,11 @@ export class UpdateTodoDto {
   @IsBoolean()
   @IsOptional()
   completed?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'Fecha límite de la tarea (ISO 8601)',
+    example: '2026-09-15T10:00:00.000Z',
+  })
+  @IsOptional()
+  dueDate?: string | null;
 }
