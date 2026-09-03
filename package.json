@@ -1,6 +1,7 @@
 {
   "name": "todo-monorepo",
   "private": true,
+  "packageManager": "pnpm@11.16.0",
   "scripts": {
     "build": "pnpm --filter backend run build",
     "start": "pnpm --filter backend run start",
