@@ -6,6 +6,7 @@ WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/backend/prisma ./packages/backend/prisma/
+RUN pnpm approve-builds argon2 esbuild @swc/core @parcel/watcher @prisma/engines prisma unrs-resolver 2>/dev/null || true
 RUN pnpm install --frozen-lockfile --filter todo-backend
 
 COPY packages/backend/ ./packages/backend/

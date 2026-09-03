@@ -5,6 +5,7 @@ WORKDIR /app
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
 COPY packages/notification/package.json ./packages/notification/
+RUN pnpm approve-builds esbuild @swc/core 2>/dev/null || true
 RUN pnpm install --frozen-lockfile --filter notification-service
 
 COPY packages/notification/ ./packages/notification/
