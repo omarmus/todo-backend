@@ -110,6 +110,13 @@ Un solo t3.micro corre todo: los 3 servicios + PostgreSQL + MongoDB via Docker C
 - **T3 burst** — usa CPU credit para arranques, idle no cuesta extra
 - **Sin complejidad** — no hay ECS, RDS, ni DocumentDB que configurar
 
+### Gotchas conocidos
+
+- **pnpm v11 requiere Node 22+** — los Dockerfiles usan `node:22-alpine`
+- **t3.micro tiene 1GB RAM** — necesitás 1GB de swap y buildear servicios de a uno
+- **pnpm ignora build scripts por defecto** — el `package.json` raíz tiene `pnpm.onlyBuiltDependencies` para permitir Prisma, esbuild, etc.
+- **NestJS build genera `dist/src/main.js`** — no `dist/main.js`
+
 ### Instalar AWS CLI
 
 ```bash
@@ -207,11 +214,41 @@ aws ec2 describe-instances \
 # Conectar por SSH
 ssh -i ~/.ssh/todo-key.pem ec2-user@IP_PUBLICA
 
-# Actualizar sistema e instalar Docker
+# Actualizar sistema
 sudo dnf update -y
-sudo dnf install -y docker docker-compose-plugin git
+
+# Instalar Docker
+sudo dnf install -y docker
 sudo systemctl enable --now docker
 sudo usermod -aG docker ec2-user
+
+# Instalar git
+sudo dnf install -y git
+
+# Instalar docker-compose v2 (CLI plugin)
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+# Instalar buildx (requerido por docker compose build)
+BUILDX_VERSION=$(curl -s https://api.github.com/repos/docker/buildx/releases/latest | grep tag_name | cut -d '"' -f 4)
+sudo mkdir -p /usr/libexec/docker/cli-plugins
+sudo curl -SL "https://github.com/docker/buildx/releases/download/$BUILDX_VERSION/buildx-$BUILDX_VERSION.linux-amd64" \
+  -o /usr/libexec/docker/cli-plugins/docker-buildx
+sudo chmod +x /usr/libexec/docker/cli-plugins/docker-buildx
+
+# Verificar versiones
+docker --version
+docker compose version
+docker buildx version
+
+# Agregar 1GB de swap (la t3.micro tiene solo 1GB RAM, necesita swap para buildear)
+sudo fallocate -l 1G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
 # Cerrar sesión y volver a conectar para que el grupo docker surta efecto
 exit
@@ -247,30 +284,35 @@ sed -i "s|generar-con-openssl-rand-hex-32|$JWT_SECRET|" .env
 
 ### Paso 4: Levantar todo con Docker Compose
 
+En una t3.micro (1GB RAM) hay que buildear uno por uno para evitar OOM:
+
 ```bash
-# Build y levantar todos los servicios
-docker compose up -d --build
+# Build cada imagen por separado
+docker compose build --no-cache backend
+docker compose build --no-cache notification
+docker compose build --no-cache frontend
+
+# Levantar todos los servicios
+docker compose up -d
 
 # Verificar que todo esté corriendo
 docker compose ps
 
 # Ver logs
 docker compose logs -f
-
-# Verificar que Prisma aplique migraciones
-docker compose logs backend | grep -i migrate
 ```
 
 ### Paso 5: Verificar que funciona
 
 ```bash
 # Health check desde la máquina
-curl http://localhost:3050/api
-curl http://localhost:3060
-curl http://localhost:3040
+curl http://localhost:3050    # Backend (debería devolver 404 con JSON)
+curl http://localhost:3040    # Frontend (debería devolver HTML)
+curl http://localhost:3060    # Notification (debería devolver 404 con JSON)
 
 # Desde tu máquina local
-curl http://IP_PUBLICA:3050/api
+curl http://IP_PUBLICA:3050
+curl http://IP_PUBLICA:3040
 ```
 
 ### Paso 6 (opcional): Configurar nginx reverso + HTTPS
