@@ -1,5 +1,5 @@
 # --- Build stage ---
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 ARG VITE_API_BASE=http://localhost:3050
 ARG VITE_WS_URL=http://localhost:3060
 ENV VITE_API_BASE=$VITE_API_BASE
