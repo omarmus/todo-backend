@@ -27,4 +27,4 @@ COPY --from=builder /app/packages/backend/prisma ./prisma
 
 ENV NODE_ENV=production
 EXPOSE 3050
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]
