@@ -10,7 +10,7 @@ RUN pnpm install --frozen-lockfile --filter notification-service
 
 COPY packages/notification/ ./packages/notification/
 WORKDIR /app/packages/notification
-RUN pnpm run build
+RUN npx nest build
 
 # --- Production stage ---
 FROM node:22-alpine

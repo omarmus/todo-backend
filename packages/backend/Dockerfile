@@ -12,7 +12,7 @@ RUN pnpm install --frozen-lockfile --filter todo-backend
 COPY packages/backend/ ./packages/backend/
 WORKDIR /app/packages/backend
 RUN npx prisma generate
-RUN pnpm run build
+RUN npx nest build
 
 # --- Production stage ---
 FROM node:22-alpine

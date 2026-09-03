@@ -13,7 +13,7 @@ RUN pnpm install --frozen-lockfile --filter todo-frontend
 
 COPY packages/frontend/ ./packages/frontend/
 WORKDIR /app/packages/frontend
-RUN pnpm run build
+RUN npx vite build
 
 # --- Production stage ---
 FROM nginx:alpine
