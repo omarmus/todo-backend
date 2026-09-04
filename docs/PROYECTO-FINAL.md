@@ -180,7 +180,7 @@ Verificar que la documentación Swagger esté accesible en `/docs` y que todos l
 
 ---
 
-## Requerimientos Extras (Bonus)
+## Requerimientos Puntos Extras (Bonus)
 
 ### Extra 1: Frontend — Página de Categorías
 
@@ -220,28 +220,27 @@ Desplegar el sistema completo a un servicio de AWS. Opciones válidas:
 | Criterio                              | Puntos |
 |---------------------------------------|--------|
 | Schema de Prisma correcto con migración | 10     |
-| Módulo Categories completo (CRUD)     | 25     |
-| Tests (3 mínimos, pasando)            | 15     |
-| Endpoints Users completados           | 15     |
+| Módulo Categories completo (CRUD)     | 30     |
+| Tests (3 mínimos, pasando)            | 20     |
+| Endpoints Users completados           | 20     |
 | Swagger documentado correctamente     | 10     |
 | Código limpio y consistente           | 10     |
 | **Extra: Frontend de Categorías**     | +10    |
 | **Extra: Despliegue a AWS**           | +5     |
 
-**Total obligatorio: 85 puntos**
+**Total obligatorio: 100 puntos**
 
 ---
 
 ## Instrucciones de entrega
 
-1. Crear una rama `feature/final-project-categories`
-2. Commits atómicos y descriptivos
-3. Todos los tests deben pasar (`pnpm --filter todo-backend test`)
-4. El backend debe compilar sin errores (`pnpm --filter todo-backend build`)
-5. Abrir un Pull Request contra `main` con una descripción que incluya:
+1. Hacer un fork del repositorio: https://github.com/omarmus/todo-backend
+2. Crear una rama `feature/final-project-categories` en tu fork
+3. Commits atómicos y descriptivos
+4. Todos los tests deben pasar (`pnpm --filter todo-backend test`)
+5. El backend debe compilar sin errores (`pnpm --filter todo-backend build`)
+6. Abrir un Pull Request contra `main` en tu fork con una descripción que incluya:
    - Qué se implementó
-   - Cómo ejecutar los tests
-   - Screenshots de Swagger (si aplica)
    - URL del despliegue (si aplica el extra)
 
 ---

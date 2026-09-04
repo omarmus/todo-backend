@@ -269,10 +269,6 @@ DATABASE_URL=postgresql://postgres:PASSWORD_DB@postgres:5432/todo
 JWT_SECRET=generar-con-openssl-rand-hex-32
 MONGODB_URI=mongodb://mongodb:27017/notifications
 
-# Frontend
-VITE_API_URL=http://IP_PUBLICA:3050
-VITE_WS_URL=ws://IP_PUBLICA:3060
-
 # Notification
 PORT=3060
 EOF
@@ -281,6 +277,9 @@ EOF
 JWT_SECRET=$(openssl rand -hex 32)
 sed -i "s|generar-con-openssl-rand-hex-32|$JWT_SECRET|" .env
 ```
+
+> **Nota:** Las variables `VITE_API_BASE` y `VITE_WS_URL` NO van en el `.env` del servidor.
+> El frontend usa rutas relativas (`/api`, `/notifications`) porque nginx proxyea todo al backend.
 
 ### Paso 4: Levantar todo con Docker Compose
 
@@ -306,16 +305,51 @@ docker compose logs -f
 
 ```bash
 # Health check desde la máquina
-curl http://localhost:3050    # Backend (debería devolver 404 con JSON)
-curl http://localhost:3040    # Frontend (debería devolver HTML)
-curl http://localhost:3060    # Notification (debería devolver 404 con JSON)
+curl http://localhost:3040    # Frontend (HTML)
+curl http://localhost:3050/api # Backend (JSON 404)
+curl http://localhost:3060    # Notification (JSON 404)
 
-# Desde tu máquina local
-curl http://IP_PUBLICA:3050
+# Desde tu máquina local (sin nginx)
 curl http://IP_PUBLICA:3040
+curl http://IP_PUBLICA:3050/api
+
+# Con nginx (después del paso 6)
+curl http://IP_PUBLICA/           # Frontend
+curl http://IP_PUBLICA/api/       # Backend
+curl http://IP_PUBLICA/api/auth/login # Login
 ```
 
-### Paso 6: Ejecutar migraciones y seed
+### Paso 6: Configurar nginx (reverso proxy en puerto 80)
+
+Para acceder en `http://IP_PUBLICA/` sin especificar puerto:
+
+```bash
+# Instalar nginx
+sudo dnf install -y nginx
+
+# Copiar configuración desde el repo
+scp -i ~/.ssh/todo-key.pem nginx/ip-based.conf ec2-user@IP_PUBLICA:/tmp/todo.conf
+ssh -i ~/.ssh/todo-key.pem ec2-user@IP_PUBLICA 'sudo cp /tmp/todo.conf /etc/nginx/conf.d/todo.conf'
+
+# Verificar configuración y reiniciar
+sudo nginx -t
+sudo systemctl enable --now nginx
+```
+
+Archivos nginx en el repo:
+- `nginx/ip-based.conf` — para IP directa (pruebas)
+- `nginx/subdomain-based.conf` — para subdominios (producción)
+
+### Rutas con nginx
+
+| Ruta | Servicio |
+|------|----------|
+| `http://IP_PUBLICA/` | Frontend (React) |
+| `http://IP_PUBLICA/api/` | Backend (NestJS) |
+| `http://IP_PUBLICA/notifications/` | Notification REST |
+| `http://IP_PUBLICA/socket.io/` | Notification WebSocket |
+
+### Paso 7: Ejecutar migraciones y seed
 
 Las migraciones y el seed se ejecutan una sola vez después del primer deploy:
 
@@ -373,37 +407,7 @@ Credenciales del admin:
 - Email: `admin@todo.com`
 - Password: `admin123`
 
-### Paso 6: Configurar nginx (reverso proxy en puerto 80)
-
-Para acceder en `http://IP_PUBLICA/` sin especificar puerto:
-
-```bash
-# Instalar nginx
-sudo dnf install -y nginx
-
-# Copiar configuración desde el repo
-scp -i ~/.ssh/todo-key.pem nginx/ip-based.conf ec2-user@IP_PUBLICA:/tmp/todo.conf
-ssh -i ~/.ssh/todo-key.pem ec2-user@IP_PUBLICA 'sudo cp /tmp/todo.conf /etc/nginx/conf.d/todo.conf'
-
-# Verificar configuración y reiniciar
-sudo nginx -t
-sudo systemctl enable --now nginx
-```
-
-Archivos nginx en el repo:
-- `nginx/ip-based.conf` — para IP directa (pruebas)
-- `nginx/subdomain-based.conf` — para subdominios (producción)
-
-### Rutas con nginx
-
-| Ruta | Servicio |
-|------|----------|
-| `http://IP_PUBLICA/` | Frontend (React) |
-| `http://IP_PUBLICA/api/` | Backend (NestJS) |
-| `http://IP_PUBLICA/notifications/` | Notification REST |
-| `http://IP_PUBLICA/socket.io/` | Notification WebSocket |
-
-### Paso 7 (producción): Configurar subdominios
+### Paso 8: Configurar subdominios (producción)
 
 Cuando tengas un dominio, configurá DNS y nginx para separar servicios por subdominio:
 
@@ -501,8 +505,7 @@ docker compose exec postgres psql -U postgres -d todo
 | `DATABASE_URL` | URL de PostgreSQL | `postgresql://postgres:pass@postgres:5432/todo` |
 | `JWT_SECRET` | Secret para JWT | `openssl rand -hex 32` |
 | `MONGODB_URI` | URL de MongoDB | `mongodb://mongodb:27017/notifications` |
-| `VITE_API_URL` | URL del backend para el frontend | `http://IP:3050` |
-| `VITE_WS_URL` | URL del WebSocket | `ws://IP:3060` |
+| `CORS_ORIGIN` | Origen permitido (producción) | `https://midominio.com` |
 
 ---
 
@@ -580,7 +583,8 @@ Y agregar estos secrets:
 - [ ] `JWT_SECRET` — generado con `openssl rand -hex 32`
 - [ ] `DATABASE_URL` — apunta al contenedor postgres, no a localhost
 - [ ] `MONGODB_URI` — apunta al contenedor mongodb
-- [ ] `VITE_API_URL` — usa la IP pública, no localhost
-- [ ] Puertos abiertos en security group (3040-3060)
-- [ ] `docker compose ps` — todos los servicios healthy
-- [ ] Prisma migrate ejecutado — `docker compose logs backend | grep migrate`
+- [ ] Puertos abiertos en security group (80, 443, 22)
+- [ ] `docker compose ps` — todos los servicios corriendo
+- [ ] Prisma migrate ejecutado — migraciones + seed
+- [ ] nginx instalado y configurado — `curl http://IP_PUBLICA/` devuelve HTML
+- [ ] Login funciona — `curl http://IP_PUBLICA/api/auth/login -X POST -d '{"email":"admin@todo.com","password":"admin123"}'`

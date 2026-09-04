@@ -54,17 +54,23 @@ describe('UserController', () => {
     it('creates a user', async () => {
       userService.create.mockResolvedValue(mockUser as any);
 
-      const result = await controller.create({
-        email: 'juan@test.com',
-        name: 'Juan',
-        password: 'password123',
-      });
+      const result = await controller.create(
+        { id: '1' },
+        {
+          email: 'juan@test.com',
+          name: 'Juan',
+          password: 'password123',
+        },
+      );
       expect(result).toEqual(mockUser);
-      expect(userService.create).toHaveBeenCalledWith({
-        email: 'juan@test.com',
-        name: 'Juan',
-        password: 'password123',
-      });
+      expect(userService.create).toHaveBeenCalledWith(
+        {
+          email: 'juan@test.com',
+          name: 'Juan',
+          password: 'password123',
+        },
+        '1',
+      );
     });
   });
 });

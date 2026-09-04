@@ -17,7 +17,7 @@ export class UserService {
     return toSafeUsers(users);
   }
 
-  async create(dto: CreateUserDto, id: string) {
+  async create(dto: CreateUserDto, userId: string) {
     const existing = await this.userRepository.findByEmail(dto.email);
     if (existing) {
       throw new Error('User with this email already exists');
@@ -39,11 +39,11 @@ export class UserService {
     });
 
     await this.notificationPort.send({
-      userId: id,
+      userId,
       type: 'TASK_CREATED',
-      title: 'Nueva usuario',
+      title: 'Nuevo usuario',
       message: `Se creó el usuario "${dto.name}"`,
-      metadata: { userId: toSafeUser(user) },
+      metadata: { user: toSafeUser(user) },
     });
 
     return toSafeUser(user);
