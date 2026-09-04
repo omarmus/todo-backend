@@ -315,42 +315,61 @@ curl http://IP_PUBLICA:3050
 curl http://IP_PUBLICA:3040
 ```
 
-### Paso 6 (opcional): Configurar nginx reverso + HTTPS
+### Paso 6: Configurar nginx (reverso proxy en puerto 80)
 
-Si querés exponer todo en un solo puerto (80/443):
+Para acceder en `http://IP_PUBLICA/` sin especificar puerto:
 
 ```bash
-# Crear config de nginx
-sudo apt install -y nginx  # o sudo dnf install -y nginx en AL2023
+# Instalar nginx
+sudo dnf install -y nginx
 
-cat > /tmp/nginx-todo.conf << 'EOF'
+# Crear configuración
+cat << 'EOF' | sudo tee /etc/nginx/conf.d/todo.conf
 server {
     listen 80;
-    server_name TU_DOMINIO.com;
+    server_name _;
 
     location / {
         proxy_pass http://localhost:3040;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location /api/ {
-        proxy_pass http://localhost:3050;
+        proxy_pass http://localhost:3050/api/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     location /notifications/ {
-        proxy_pass http://localhost:3060;
+        proxy_pass http://localhost:3060/notifications/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 EOF
 
-sudo cp /tmp/nginx-todo.conf /etc/nginx/conf.d/todo.conf
-sudo systemctl restart nginx
+# Verificar configuración y reiniciar
+sudo nginx -t
+sudo systemctl enable --now nginx
 ```
+
+### Rutas con nginx
+
+| Ruta | Servicio |
+|------|----------|
+| `http://IP_PUBLICA/` | Frontend (React) |
+| `http://IP_PUBLICA/api/` | Backend (NestJS) |
+| `http://IP_PUBLICA/notifications/` | Notification (WebSocket) |
 
 ---
 
