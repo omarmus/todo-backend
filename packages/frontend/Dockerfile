@@ -1,7 +1,7 @@
 # --- Build stage ---
 FROM node:22-alpine AS builder
-ARG VITE_API_BASE=http://localhost:3050
-ARG VITE_WS_URL=http://localhost:3060
+ARG VITE_API_BASE=
+ARG VITE_WS_URL=
 ENV VITE_API_BASE=$VITE_API_BASE
 ENV VITE_WS_URL=$VITE_WS_URL
 RUN corepack enable && corepack prepare pnpm@latest --activate

@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE}/auth/login`, {
+    const res = await fetch(`${import.meta.env.VITE_API_BASE || ''}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
