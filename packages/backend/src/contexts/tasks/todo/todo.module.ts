@@ -17,6 +17,6 @@ import { HttpNotificationAdapter } from './infrastructure/http-notification.adap
       useClass: HttpNotificationAdapter,
     },
   ],
-  exports: [TodoService],
+  exports: [TodoService, NotificationPort],
 })
 export class TodoModule {}

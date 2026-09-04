@@ -315,6 +315,64 @@ curl http://IP_PUBLICA:3050
 curl http://IP_PUBLICA:3040
 ```
 
+### Paso 6: Ejecutar migraciones y seed
+
+Las migraciones y el seed se ejecutan una sola vez después del primer deploy:
+
+```bash
+# Crear script de migración + seed
+cat << 'SEEDSCRIPT' > /tmp/migrate-and-seed.js
+const { PrismaClient } = require('/app/packages/backend/dist/generated/prisma/client');
+const { PrismaPg } = require('/app/node_modules/.pnpm/@prisma+adapter-pg@7.10.0/node_modules/@prisma/adapter-pg');
+const fs = require('fs');
+const path = require('path');
+
+async function main() {
+  const migrationsDir = '/app/packages/backend/prisma/migrations';
+  const migrationDirs = fs.readdirSync(migrationsDir).filter(d => d !== 'migration_lock.toml').sort();
+  
+  const adapter = new PrismaPg(process.env.DATABASE_URL);
+  const prisma = new PrismaClient({ adapter });
+  
+  for (const dir of migrationDirs) {
+    const sqlFile = path.join(migrationsDir, dir, 'migration.sql');
+    if (fs.existsSync(sqlFile)) {
+      const sql = fs.readFileSync(sqlFile, 'utf8');
+      console.log('Applying migration: ' + dir);
+      await prisma.$executeRawUnsafe(sql);
+    }
+  }
+  
+  console.log('Migrations applied!');
+  
+  const argon2 = require('/app/node_modules/.pnpm/argon2@0.45.1/node_modules/argon2');
+  const email = 'admin@todo.com';
+  const password = 'admin123';
+  
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    console.log('User already exists, skipping seed.');
+    await prisma.$disconnect();
+    return;
+  }
+  
+  const hashed = await argon2.hash(password, { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 });
+  const user = await prisma.user.create({ data: { email, name: 'Admin', password: hashed, role: 'ADMIN', status: 'ACTIVE' } });
+  console.log('Admin user created: ' + user.email);
+  await prisma.$disconnect();
+}
+main().catch(e => { console.error(e); process.exit(1); });
+SEEDSCRIPT
+
+# Copiar al contenedor y ejecutar
+docker compose cp /tmp/migrate-and-seed.js backend:/app/packages/backend/migrate-and-seed.js
+docker compose exec backend node packages/backend/migrate-and-seed.js
+```
+
+Credenciales del admin:
+- Email: `admin@todo.com`
+- Password: `admin123`
+
 ### Paso 6: Configurar nginx (reverso proxy en puerto 80)
 
 Para acceder en `http://IP_PUBLICA/` sin especificar puerto:

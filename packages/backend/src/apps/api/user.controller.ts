@@ -9,6 +9,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentUser } from 'src/contexts/identity-access/auth/infrastructure/current-user.decorator';
 
 @ApiTags('Users')
 @ApiBearerAuth('jwt')
@@ -27,7 +28,7 @@ export class UserController {
   @Post()
   @ApiOperation({ summary: 'Crear un nuevo usuario' })
   @ApiCreatedResponse({ description: 'Usuario creado correctamente' })
-  create(@Body() dto: CreateUserDto) {
-    return this.userService.create(dto);
+  create(@CurrentUser() user: { id: string }, @Body() dto: CreateUserDto) {
+    return this.userService.create(dto, user.id);
   }
 }

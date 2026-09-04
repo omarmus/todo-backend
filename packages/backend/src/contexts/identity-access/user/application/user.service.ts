@@ -3,17 +3,21 @@ import { UserRepository } from '../domain/user.repository';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as argon2 from 'argon2';
 import { toSafeUser, toSafeUsers } from '../domain/user.entity';
+import { NotificationPort } from 'src/contexts/tasks/todo/domain/notification.port';
 
 @Injectable()
 export class UserService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly notificationPort: NotificationPort,
+  ) {}
 
   async findAll() {
     const users = await this.userRepository.findAll();
     return toSafeUsers(users);
   }
 
-  async create(dto: CreateUserDto) {
+  async create(dto: CreateUserDto, id: string) {
     const existing = await this.userRepository.findByEmail(dto.email);
     if (existing) {
       throw new Error('User with this email already exists');
@@ -32,6 +36,14 @@ export class UserService {
       password: hashedPassword,
       role: 'CLIENT',
       status: 'ACTIVE',
+    });
+
+    await this.notificationPort.send({
+      userId: id,
+      type: 'TASK_CREATED',
+      title: 'Nueva usuario',
+      message: `Se creó el usuario "${dto.name}"`,
+      metadata: { userId: toSafeUser(user) },
     });
 
     return toSafeUser(user);
