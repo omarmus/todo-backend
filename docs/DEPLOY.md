@@ -381,45 +381,18 @@ Para acceder en `http://IP_PUBLICA/` sin especificar puerto:
 # Instalar nginx
 sudo dnf install -y nginx
 
-# Crear configuración
-cat << 'EOF' | sudo tee /etc/nginx/conf.d/todo.conf
-server {
-    listen 80;
-    server_name _;
-
-    location / {
-        proxy_pass http://localhost:3040;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/ {
-        proxy_pass http://localhost:3050/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /notifications/ {
-        proxy_pass http://localhost:3060/notifications/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-EOF
+# Copiar configuración desde el repo
+scp -i ~/.ssh/todo-key.pem nginx/ip-based.conf ec2-user@IP_PUBLICA:/tmp/todo.conf
+ssh -i ~/.ssh/todo-key.pem ec2-user@IP_PUBLICA 'sudo cp /tmp/todo.conf /etc/nginx/conf.d/todo.conf'
 
 # Verificar configuración y reiniciar
 sudo nginx -t
 sudo systemctl enable --now nginx
 ```
+
+Archivos nginx en el repo:
+- `nginx/ip-based.conf` — para IP directa (pruebas)
+- `nginx/subdomain-based.conf` — para subdominios (producción)
 
 ### Rutas con nginx
 
@@ -427,7 +400,64 @@ sudo systemctl enable --now nginx
 |------|----------|
 | `http://IP_PUBLICA/` | Frontend (React) |
 | `http://IP_PUBLICA/api/` | Backend (NestJS) |
-| `http://IP_PUBLICA/notifications/` | Notification (WebSocket) |
+| `http://IP_PUBLICA/notifications/` | Notification REST |
+| `http://IP_PUBLICA/socket.io/` | Notification WebSocket |
+
+### Paso 7 (producción): Configurar subdominios
+
+Cuando tengas un dominio, configurá DNS y nginx para separar servicios por subdominio:
+
+#### Paso 7a: Configurar DNS
+
+Crear registros A en tu proveedor DNS:
+
+| Tipo | Nombre | Valor |
+|------|--------|-------|
+| A | `@` (midominio.com) | IP_PUBLICA |
+| A | `api` | IP_PUBLICA |
+| A | `notify` | IP_PUBLICA |
+
+Si usás **Cloudflare**: DNS → Records → Add record (tipo A, nombre, contenido = IP, proxy desactivado para backend).
+
+Si usás **Route 53** (AWS): Route 53 → Hosted zones → Create record (A, alias no, IP).
+
+#### Paso 7b: Cambiar nginx a modo subdominios
+
+```bash
+# Copiar config de subdominios
+scp -i ~/.ssh/todo-key.pem nginx/subdomain-based.conf ec2-user@IP_PUBLICA:/tmp/todo.conf
+ssh -i ~/.ssh/todo-key.pem ec2-user@IP_PUBLICA 'sudo cp /tmp/todo.conf /etc/nginx/conf.d/todo.conf && sudo nginx -t && sudo systemctl restart nginx'
+```
+
+#### Paso 7c: Actualizar CORS y frontend
+
+En `docker-compose.yml`, actualizar las variables de entorno:
+
+```yaml
+backend:
+  environment:
+    CORS_ORIGIN: https://midominio.com
+
+frontend:
+  build:
+    args:
+      VITE_API_BASE: https://api.midominio.com
+      VITE_WS_URL: wss://notify.midominio.com
+```
+
+#### Paso 7d: HTTPS con Let's Encrypt (opcional)
+
+```bash
+sudo dnf install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d midominio.com -d api.midominio.com -d notify.midominio.com
+sudo systemctl enable --now certbot-renew.timer
+```
+
+| Subdominio | Servicio |
+|------------|----------|
+| `midominio.com` | Frontend (React) |
+| `api.midominio.com` | Backend (NestJS) |
+| `notify.midominio.com` | Notification (WebSocket) |
 
 ---
 
