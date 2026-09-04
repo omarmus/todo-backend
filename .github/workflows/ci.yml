@@ -64,3 +64,23 @@ jobs:
       - name: Build frontend
         run: pnpm --filter todo-frontend build
 
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test-backend, test-notification, build-frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd todo-backend
+            git pull origin main
+            docker compose build backend frontend
+            docker compose up -d backend frontend
+            echo "Deploy complete. Verifying..."
+            docker compose ps

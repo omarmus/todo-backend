@@ -525,7 +525,7 @@ docker compose exec postgres psql -U postgres -d todo
 
 | Job | Qué hace |
 |-----|----------|
-| `docker` | Buildea 3 imágenes Docker → push a Docker Hub |
+| `deploy` | SSH a EC2 → git pull → docker compose build + up |
 
 ### Flujo
 
@@ -533,48 +533,56 @@ docker compose exec postgres psql -U postgres -d todo
 PR a main        →  test-backend ✓
                    test-notification ✓
                    build-frontend ✓
-                   (no buildea Docker)
+                   (no deploya)
 
 Push a main      →  test-backend ✓
                    test-notification ✓
                    build-frontend ✓
-                   → docker build + push a Docker Hub
+                   → deploy a EC2 (git pull + docker build + up)
 ```
 
-### Secrets necesarios en GitHub
+### Configurar deploy automático
+
+#### Paso 1: Generar key pair en la EC2
+
+```bash
+# En la EC2
+ssh-keygen -t ed25519 -f ~/.ssh/github_deploy -N ""
+cat ~/.ssh/github_deploy.pub >> ~/.ssh/authorized_keys
+```
+
+#### Paso 2: Crear secrets en GitHub
 
 Ir a **Settings → Secrets and variables → Actions**:
 
-| Secret | Descripción |
-|--------|-------------|
-| `DOCKERHUB_USERNAME` | Usuario de Docker Hub |
-| `DOCKERHUB_TOKEN` | Token de Docker Hub (no la password) |
+| Secret | Descripción | Cómo obtenerlo |
+|--------|-------------|----------------|
+| `EC2_HOST` | IP pública de la EC2 | `aws ec2 describe-instances --instance-ids i-XXXXX --query 'Reservations[0].Instances[0].PublicIpAddress' --output text` |
+| `EC2_SSH_KEY` | Private key para SSH | `cat ~/.ssh/github_deploy` (copiar todo el contenido) |
 
-| Variable | Descripción |
-|----------|-------------|
-| `API_URL` | URL del backend para el frontend build |
-| `WS_URL` | URL del WebSocket para el frontend build |
+### Qué pasa cuando pusheás a main
 
-### Para conectarse a EC2 en vez de Docker Hub
+1. GitHub Actions corre los 3 tests en paralelo
+2. Si los 3 pasan, ejecuta el job `deploy`
+3. El deploy hace SSH a la EC2 y ejecuta:
+   ```bash
+   cd todo-backend
+   git pull origin main          # actualiza código
+   docker compose build backend frontend  # reconstruye imágenes
+   docker compose up -d backend frontend  # recrea contenedores
+   ```
+4. El backend y frontend se actualizan. Las DBs y notification no se reinician (no cambiaron).
 
-Si deployás directo al t3.micro (sin ECR), el workflow actual no alcanza. Necesitarías un step extra que haga SSH a la EC2 y ejecute `docker compose pull && docker compose up -d`. Eso se agrega al job `docker`:
+### Deploy manual (sin GitHub)
 
-```yaml
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd todo-backend
-            docker compose pull
-            docker compose up -d --build
+Si preferís deployar manualmente desde la EC2:
+
+```bash
+cd ~/todo-backend
+git pull origin main
+docker compose build backend frontend
+docker compose up -d backend frontend
 ```
-
-Y agregar estos secrets:
-- `EC2_HOST` — IP pública de la instancia
-- `EC2_SSH_KEY` — contenido completo de la key `.pem`
 
 ---
 
