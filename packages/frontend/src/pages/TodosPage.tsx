@@ -27,7 +27,7 @@ export default function TodosPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api<Todo[]>("/todo", { token });
+      const data = await api<Todo[]>("/api/todo", { token });
       setTodos(data);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Error al cargar", "error");
@@ -45,7 +45,7 @@ export default function TodosPage() {
     if (!title.trim()) return;
     setSubmitting(true);
     try {
-      await api("/todo", {
+      await api("/api/todo", {
         method: "POST",
         body: {
           title: title.trim(),
@@ -68,7 +68,7 @@ export default function TodosPage() {
 
   const handleToggle = async (todo: Todo) => {
     try {
-      await api(`/todo/${todo.id}`, {
+      await api(`/api/todo/${todo.id}`, {
         method: "PATCH",
         body: { completed: !todo.completed },
         token,
@@ -81,7 +81,7 @@ export default function TodosPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      await api(`/todo/${id}`, { method: "DELETE", token });
+      await api(`/api/todo/${id}`, { method: "DELETE", token });
       showToast("Tarea eliminada", "success");
       load();
     } catch (err) {
@@ -99,7 +99,7 @@ export default function TodosPage() {
   const handleSave = async () => {
     if (!editingId || !editTitle.trim()) return;
     try {
-      await api(`/todo/${editingId}`, {
+      await api(`/api/todo/${editingId}`, {
         method: "PATCH",
         body: {
           title: editTitle.trim(),

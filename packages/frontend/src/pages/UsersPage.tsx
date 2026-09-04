@@ -22,7 +22,7 @@ export default function UsersPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await api<User[]>("/users", { token });
+      const data = await api<User[]>("/api/users", { token });
       setUsers(data);
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Error al cargar", "error");
@@ -39,7 +39,7 @@ export default function UsersPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api("/users", { method: "POST", body: form, token });
+      await api("/api/users", { method: "POST", body: form, token });
       setForm({ email: "", name: "", password: "" });
       setShowForm(false);
       showToast("Usuario creado", "success");
