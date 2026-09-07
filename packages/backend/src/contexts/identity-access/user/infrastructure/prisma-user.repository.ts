@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { UserCreateData, UserRepository } from '../domain/user.repository';
+import {
+  UserCreateData,
+  UserRepository,
+  UserUpdateData,
+} from '../domain/user.repository';
 import { User } from '../domain/user.entity';
 import { PrismaService } from 'src/shared/infrastructure/prisma/prisma.service';
 
 @Injectable()
 export class PrismaUserRepository implements UserRepository {
-  constructor(private readonly prisma: PrismaService) {} 
+  constructor(private readonly prisma: PrismaService) {}
 
   private toDomain(row: any): User {
     return new User(
@@ -24,17 +28,44 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
     return user ? this.toDomain(user) : null;
   }
 
   async findById(id: string): Promise<User | null> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
     return user ? this.toDomain(user) : null;
   }
 
-  async create(user: UserCreateData) {
-    const row = await this.prisma.user.create({ data: user });
+  async create(user: UserCreateData): Promise<User> {
+    const row = await this.prisma.user.create({
+      data: user,
+    });
+
     return this.toDomain(row);
+  }
+
+  async update(
+    id: string,
+    data: UserUpdateData,
+  ): Promise<User | null> {
+    const row = await this.prisma.user.update({
+      where: { id },
+      data,
+    });
+
+    return this.toDomain(row);
+  }
+
+  async deleteItem(id: string): Promise<void> {
+    await this.prisma.user.delete({
+      where: { id },
+    });
   }
 }
