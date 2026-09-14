@@ -2,6 +2,27 @@
 
 Proyecto de tareas construido como monorepo con **pnpm workspaces**.
 
+## Índice
+
+- [Estructura](#estructura)
+- [Requisitos previos](#requisitos-previos)
+- [Instalación](#instalación)
+- [Variables de entorno](#variables-de-entorno)
+- [Ejecutar](#ejecutar)
+- [Scripts disponibles](#scripts-disponibles)
+- [Seguridad](#seguridad)
+  - [CORS](#cors-cross-origin-resource-sharing)
+  - [Autenticación JWT](#autenticación-jwt)
+  - [Validación de entrada](#validación-de-entrada)
+  - [Seguridad de la contraseña](#seguridad-de-la-contraseña)
+- [Packages](#packages)
+  - [Backend](#backend-packagesbackend)
+  - [Frontend](#frontend-packagesfrontend)
+  - [Notification](#notification-packagesnotification)
+- [Arquitectura del Monorepo](#arquitectura-del-monorepo)
+- [Despliegue](#despliegue)
+- [Recursos](#recursos)
+
 ## Estructura
 
 ```
