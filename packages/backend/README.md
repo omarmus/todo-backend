@@ -6,7 +6,28 @@
 
 Backend de tareas construido con NestJS, Prisma ORM y PostgreSQL, siguiendo los principios de **Domain-Driven Design (DDD)** con **Hexagonal Architecture**.
 
-> Este backend forma parte de un monorepo. El frontend está en `packages/frontend/`.
+> Este backend forma parte de un monorepo. El frontend está en `packages/frontend/` y el servicio de notificaciones en `packages/notification/`.
+
+## Índice
+
+- [Requisitos previos](#requisitos-previos)
+- [Instalación y configuración](#instalación-y-configuración)
+- [Paquetes de Prisma](#paquetes-de-prisma)
+- [Evolución de la estructura](#evolución-de-la-estructura)
+- [Estructura final del proyecto](#estructura-final-del-proyecto)
+- [Seguridad](#seguridad)
+  - [CORS](#cors-cross-origin-resource-sharing)
+  - [Prefijo global /api](#prefijo-global-api)
+  - [Autenticación JWT](#autenticación-y-seguridad-de-apis)
+  - [Validación de entrada](#validación-de-entrada)
+  - [Seguridad de la contraseña](#seguridad-de-la-contraseña)
+- [Integración con Notification Service](#integración-con-notification-service)
+- [API Endpoints](#api-endpoints)
+- [Swagger](#swagger)
+- [Árbol de Módulos](#árbol-de-módulos)
+- [Tests](#tests)
+- [Prisma Commands](#prisma-commands)
+- [Recursos](#recursos)
 
 ## Requisitos previos
 
@@ -603,7 +624,153 @@ const valid = await argon2.verify(user.password, dto.password);
 | Autenticación | JWT (HS256) | Tokens stateless, verificables sin DB |
 | Autorización | Guards + Decorators | Control de acceso por endpoint |
 | Validación | DTOs + ValidationPipe | Filtra entradas maliciosas antes de llegar al dominio |
+| CORS | enableCors() | Solo permite orígenes específicos |
 | Configuración | ConfigService | Variables de entorno seguras, sin hardcoding |
+
+---
+
+## CORS (Cross-Origin Resource Sharing)
+
+### Configuración
+
+```typescript
+// main.ts
+app.enableCors({
+  origin: process.env.CORS_ORIGIN ?? 'http://localhost:3040',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  credentials: true,
+});
+```
+
+### Por qué importa
+
+Sin CORS, el navegador bloquea las requests del frontend (`http://localhost:3040`) al backend (`http://localhost:3050`) por política same-origin. `enableCors()` agrega los headers necesarios:
+
+```
+Access-Control-Allow-Origin: http://localhost:3040
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH
+Access-Control-Allow-Credentials: true
+```
+
+### En producción
+
+La variable `CORS_ORIGIN` se configura en `docker-compose.yml` con la IP pública del servidor:
+
+```yaml
+# docker-compose.yml
+backend:
+  environment:
+    CORS_ORIGIN: http://184.73.194.175:3040
+```
+
+**Nunca** se usa `*` como origin en producción — solo en el notification service (WebSocket interno).
+
+---
+
+## Prefijo global `/api`
+
+```typescript
+// main.ts
+app.setGlobalPrefix('api');
+```
+
+Todas las rutas del backend llevan prefijo `/api`:
+
+| Ruta interna | Ruta pública |
+|-------------|-------------|
+| `POST /auth/login` | `POST /api/auth/login` |
+| `GET /users` | `GET /api/users` |
+| `GET /todo` | `GET /api/todo` |
+| `POST /todo` | `POST /api/todo` |
+
+El frontend usa el prefijo `/api` en todas sus llamadas:
+
+```typescript
+// useAuth.tsx
+fetch(`${API_BASE}/api/auth/login`, { ... })
+
+// TodosPage.tsx
+api("/api/todo", { token })
+api(`/api/todo/${id}`, { method: "DELETE", token })
+```
+
+---
+
+## Integración con Notification Service
+
+### Cómo se comunica
+
+El backend envía notificaciones al servicio de notification vía HTTP interno (no expuesto al público):
+
+```typescript
+// src/contexts/tasks/todo/infrastructure/http-notification.adapter.ts
+@Injectable()
+export class HttpNotificationAdapter implements NotificationPort {
+  private readonly notificationUrl: string;
+
+  constructor(private readonly config: ConfigService) {
+    this.notificationUrl = this.config.get<string>(
+      'NOTIFICATION_SERVICE_URL',
+      'http://localhost:3060',
+    );
+  }
+
+  async send(data: SendNotificationData): Promise<void> {
+    await fetch(`${this.notificationUrl}/notifications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  }
+}
+```
+
+### Puerto de notificación (Port Pattern)
+
+El backend define un **puerto abstracto** en el domain layer, no depende directamente del notification service:
+
+```typescript
+// src/contexts/tasks/todo/domain/notification.port.ts
+export abstract class NotificationPort {
+  abstract send(data: SendNotificationData): Promise<void>;
+}
+```
+
+La implementación (`HttpNotificationAdapter`) vive en `infrastructure/`. Para cambiar de HTTP a RabbitMQ, Redis, o cualquier otro transport, solo se crea otra implementación — el service NO cambia.
+
+### Tipos de notificación
+
+| Tipo | Cuándo se envía | Datos |
+|------|----------------|-------|
+| `TASK_CREATED` | Al crear una tarea | `{ userId, type, title, message, metadata: { taskId } }` |
+| `TASK_COMPLETED` | Al marcar como completada | `{ userId, type, title, message, metadata: { taskId } }` |
+
+### Ejemplo de uso en el service
+
+```typescript
+// src/contexts/tasks/todo/application/todo.service.ts
+async create(userId: string, dto: CreateTodoDto) {
+  const todo = await this.todoRepository.create({ ... });
+
+  await this.notificationPort.send({
+    userId,
+    type: 'TASK_CREATED',
+    title: 'Nueva tarea',
+    message: `Se creó la tarea "${dto.title}"`,
+    metadata: { taskId: todo.id },
+  });
+
+  return todo;
+}
+```
+
+### Variables de entorno
+
+```env
+# .env
+NOTIFICATION_SERVICE_URL=http://localhost:3060  # Local
+# En Docker: http://notification:3060 (nombre del servicio en compose)
+```
 
 ---
 
@@ -613,24 +780,24 @@ const valid = await argon2.verify(user.password, dto.password);
 
 | Método | Ruta | Autenticado | Descripción |
 |--------|------|-------------|-------------|
-| POST | `/auth/login` | No | Iniciar sesión, retorna JWT |
+| POST | `/api/auth/login` | No | Iniciar sesión, retorna JWT |
 
 ### Users
 
 | Método | Ruta | Autenticado | Descripción |
 |--------|------|-------------|-------------|
-| GET | `/users` | Sí | Listar todos los usuarios |
-| POST | `/users` | Sí | Crear usuario |
+| GET | `/api/users` | Sí | Listar todos los usuarios |
+| POST | `/api/users` | Sí | Crear usuario |
 
 ### Todo
 
 | Método | Ruta | Autenticado | Descripción |
 |--------|------|-------------|-------------|
-| GET | `/todo` | Sí | Listar tareas del usuario |
-| GET | `/todo/:id` | Sí | Obtener tarea por ID |
-| POST | `/todo` | Sí | Crear tarea |
-| PATCH | `/todo/:id` | Sí | Actualizar tarea (parcial) |
-| DELETE | `/todo/:id` | Sí | Eliminar tarea |
+| GET | `/api/todo` | Sí | Listar tareas del usuario |
+| GET | `/api/todo/:id` | Sí | Obtener tarea por ID |
+| POST | `/api/todo` | Sí | Crear tarea |
+| PATCH | `/api/todo/:id` | Sí | Actualizar tarea (parcial) |
+| DELETE | `/api/todo/:id` | Sí | Eliminar tarea |
 
 ### PATCH /todo/:id — Update Parcial
 
@@ -779,7 +946,7 @@ AppModule
 ## Tests
 
 ```bash
-pnpm test           # 31 tests, 7 suites
+pnpm test           # 32 tests, 7 suites
 pnpm test:cov       # coverage
 ```
 
