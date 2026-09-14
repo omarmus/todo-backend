@@ -9,19 +9,31 @@ interface Todo {
   description: string | null;
   completed: boolean;
   dueDate: string | null;
+  categoryId?: string | null;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  color: string | null;
 }
 
 export default function TodosPage() {
   const { token } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
+  const [editCategoryId, setEditCategoryId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const load = async () => {
@@ -36,8 +48,21 @@ export default function TodosPage() {
     }
   };
 
+  const loadCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const data = await api<Category[]>("/api/categories", { token });
+      setCategories(data);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Error al cargar categorias", "error");
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
   useEffect(() => {
-    load();
+    void load();
+    void loadCategories();
   }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -51,12 +76,14 @@ export default function TodosPage() {
           title: title.trim(),
           description: description.trim() || undefined,
           dueDate: dueDate || undefined,
+          categoryId: categoryId || null,
         },
         token,
       });
       setTitle("");
       setDescription("");
       setDueDate("");
+      setCategoryId("");
       showToast("Tarea creada", "success");
       load();
     } catch (err) {
@@ -94,6 +121,7 @@ export default function TodosPage() {
     setEditTitle(todo.title);
     setEditDescription(todo.description ?? "");
     setEditDueDate(todo.dueDate ? todo.dueDate.split("T")[0] : "");
+    setEditCategoryId(todo.categoryId ?? "");
   };
 
   const handleSave = async () => {
@@ -105,6 +133,7 @@ export default function TodosPage() {
           title: editTitle.trim(),
           description: editDescription.trim() || undefined,
           dueDate: editDueDate || null,
+          categoryId: editCategoryId || null,
         },
         token,
       });
@@ -121,7 +150,16 @@ export default function TodosPage() {
   };
 
   const completed = todos.filter((t) => t.completed).length;
-  const total = todos.length;
+  const filteredTodos =
+    selectedCategoryId === "all"
+      ? todos
+      : todos.filter((todo) => todo.categoryId === selectedCategoryId);
+  const total = filteredTodos.length;
+
+  const findCategory = (categoryId: string | null | undefined) => {
+    if (!categoryId) return null;
+    return categories.find((category) => category.id === categoryId) ?? null;
+  };
 
   return (
     <div>
@@ -162,6 +200,20 @@ export default function TodosPage() {
             className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
+        <div className="w-56 flex flex-col gap-1">
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Sin categoria</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="submit"
           disabled={submitting || !title.trim()}
@@ -171,19 +223,46 @@ export default function TodosPage() {
         </button>
       </form>
 
+      <div className="mb-4 flex items-center gap-2">
+        <select
+          value={selectedCategoryId}
+          onChange={(e) => setSelectedCategoryId(e.target.value)}
+          disabled={loadingCategories}
+          className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Todas las categorias</option>
+          {categories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => setSelectedCategoryId("all")}
+          className="px-3 py-2 text-xs text-gray-600 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+        >
+          Limpiar filtro
+        </button>
+      </div>
+
       {loading ? (
         <p className="text-sm text-gray-500">Cargando...</p>
-      ) : todos.length === 0 ? (
+      ) : filteredTodos.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-12">
-          No hay tareas aún
+          {selectedCategoryId === "all"
+            ? "No hay tareas aún"
+            : "No hay tareas para la categoria seleccionada"}
         </p>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
-          {todos.map((todo) => (
-            <div
-              key={todo.id}
-              className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50"
-            >
+          {filteredTodos.map((todo) => {
+            const category = findCategory(todo.categoryId);
+
+            return (
+              <div
+                key={todo.id}
+                className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50"
+              >
               <input
                 type="checkbox"
                 checked={todo.completed}
@@ -223,6 +302,18 @@ export default function TodosPage() {
                     }}
                     className="w-full px-2 py-1 border border-blue-200 rounded text-xs text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
+                  <select
+                    value={editCategoryId}
+                    onChange={(e) => setEditCategoryId(e.target.value)}
+                    className="w-full px-2 py-1 border border-blue-200 rounded text-xs text-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Sin categoria</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                   <div className="flex gap-2">
                     <button
                       onClick={handleSave}
@@ -253,6 +344,21 @@ export default function TodosPage() {
                     >
                       {todo.title}
                     </span>
+                    {category && (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-gray-200"
+                        style={{
+                          backgroundColor: `${category.color ?? "#3b82f6"}22`,
+                          color: category.color ?? "#3b82f6",
+                        }}
+                      >
+                        <span
+                          className="inline-flex h-2 w-2 rounded-full"
+                          style={{ backgroundColor: category.color ?? "#3b82f6" }}
+                        />
+                        {category.name}
+                      </span>
+                    )}
                     <svg
                       className="w-3 h-3 text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
                       fill="none"
@@ -290,8 +396,9 @@ export default function TodosPage() {
               >
                 Eliminar
               </button>
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
