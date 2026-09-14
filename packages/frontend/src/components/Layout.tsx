@@ -6,6 +6,7 @@ import NotificationBell from "./NotificationBell";
 
 const nav = [
   { to: "/todos", label: "Tareas" },
+  { to: "/categories", label: "Categorias" },
   { to: "/users", label: "Usuarios" },
 ];
 
