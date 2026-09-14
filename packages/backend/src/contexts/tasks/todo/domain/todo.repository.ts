@@ -2,10 +2,11 @@ import { Todo } from './todo.entity';
 
 export interface CreateTodoData {
   title: string;
-  description: string;
-  completed: boolean;
+  description?: string | null;
+  completed?: boolean;
   userId: string;
   dueDate?: Date | null;
+  categoryId?: string | null; // 👈 ¡Faltaba agregar esto aquí!
 }
 
 export interface UpdateTodoData {
@@ -13,6 +14,7 @@ export interface UpdateTodoData {
   description?: string;
   completed?: boolean;
   dueDate?: string | Date | null;
+  categoryId?: string | null; // 👈 Útil también por si después quieres editar la categoría
 }
 
 export abstract class TodoRepository {

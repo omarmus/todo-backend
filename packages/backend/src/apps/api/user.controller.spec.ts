@@ -11,8 +11,8 @@ describe('UserController', () => {
     id: '1',
     email: 'juan@test.com',
     name: 'Juan',
-    role: 'CLIENT',
-    status: 'ACTIVE',
+    role: 'CLIENT' as const,
+    status: 'ACTIVE' as const,
   };
 
   beforeEach(async () => {
@@ -54,23 +54,18 @@ describe('UserController', () => {
     it('creates a user', async () => {
       userService.create.mockResolvedValue(mockUser as any);
 
-      const result = await controller.create(
-        { id: '1' },
-        {
-          email: 'juan@test.com',
-          name: 'Juan',
-          password: 'password123',
-        },
-      );
+      const result = await controller.create({
+        email: 'juan@test.com',
+        name: 'Juan',
+        password: 'password123',
+      } as any);
+
       expect(result).toEqual(mockUser);
-      expect(userService.create).toHaveBeenCalledWith(
-        {
-          email: 'juan@test.com',
-          name: 'Juan',
-          password: 'password123',
-        },
-        '1',
-      );
+      expect(userService.create).toHaveBeenCalledWith({
+        email: 'juan@test.com',
+        name: 'Juan',
+        password: 'password123',
+      });
     });
   });
-});
+})

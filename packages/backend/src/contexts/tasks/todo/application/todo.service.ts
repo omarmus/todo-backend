@@ -22,13 +22,14 @@ export class TodoService {
     return todo;
   }
 
-  async create(userId: string, dto: CreateTodoDto) {
+async create(userId: string, dto: CreateTodoDto) {
     const todo = await this.todoRepository.create({
       title: dto.title,
       description: dto.description || '',
       completed: false,
       userId,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      categoryId: dto.categoryId || null, // Relacion con la categoria
     });
 
     await this.notificationPort.send({

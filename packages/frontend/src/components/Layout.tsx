@@ -7,6 +7,7 @@ import NotificationBell from "./NotificationBell";
 const nav = [
   { to: "/todos", label: "Tareas" },
   { to: "/users", label: "Usuarios" },
+  { to: "/categories", label: "Categorías" },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

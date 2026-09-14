@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import UsersPage from "./pages/UsersPage";
 import TodosPage from "./pages/TodosPage";
 import Layout from "./components/Layout";
+import CategoriesPage from "./pages/CategoriesPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
@@ -28,6 +29,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <TodosPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/categories"
+        element={
+          <ProtectedRoute>
+            <CategoriesPage />
           </ProtectedRoute>
         }
       />

@@ -24,4 +24,9 @@ export class CreateTodoDto {
   })
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({ description: 'ID de la categoría' })
+  @IsString()
+  @IsOptional()
+  categoryId?: string;
 }

@@ -19,26 +19,50 @@ export class PrismaTodoRepository implements TodoRepository {
       row.completed,
       row.userId,
       row.dueDate,
+      row.category ? {
+        id: row.category.id,
+        name: row.category.name,
+        color: row.category.color,
+      } : null, // categoría
     );
   }
 
   async findAll() {
-    const rows = await this.prisma.todo.findMany();
+    const rows = await this.prisma.todo.findMany({
+      include: { category: true }, // Relación con categoria
+    });
     return rows.map((r) => this.toDomain(r));
   }
 
   async getOne(id: string) {
-    const row = await this.prisma.todo.findUnique({ where: { id } });
+    const row = await this.prisma.todo.findUnique({
+      where: { id },
+      include: { category: true }, // Relación con categoria
+    });
     return row ? this.toDomain(row) : null;
   }
 
   async create(data: CreateTodoData) {
-    const row = await this.prisma.todo.create({ data });
+    const row = await this.prisma.todo.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        completed: data.completed ?? false,
+        userId: data.userId,
+        dueDate: data.dueDate,
+        categoryId: data.categoryId || null, // enviar ID a la base de datos
+      },
+      include: { category: true }, // Traer el color y nombre para el frontend
+    });
     return this.toDomain(row);
   }
 
   async update(id: string, data: UpdateTodoData) {
-    const row = await this.prisma.todo.update({ where: { id }, data });
+    const row = await this.prisma.todo.update({
+      where: { id },
+      data,
+      include: { category: true }, // Relación con categoria
+    });
     return this.toDomain(row);
   }
 
