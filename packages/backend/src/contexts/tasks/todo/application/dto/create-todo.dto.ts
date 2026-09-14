@@ -24,4 +24,12 @@ export class CreateTodoDto {
   })
   @IsOptional()
   dueDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID de la categoría asociada a la tarea',
+    example: '9df2a44f-4d5f-4f7f-b41f-7a26d021e90d',
+  })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 }

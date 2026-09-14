@@ -11,14 +11,23 @@ import {
 export class PrismaTodoRepository implements TodoRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  private toDomain(row: any) {
+  private toDomain(row: {
+    id: string;
+    title: string;
+    description: string | null;
+    completed: boolean;
+    userId: string;
+    dueDate: Date | null;
+    categoryId: string | null;
+  }) {
     return new Todo(
       row.id,
       row.title,
-      row.description,
+      row.description ?? '',
       row.completed,
       row.userId,
       row.dueDate,
+      row.categoryId,
     );
   }
 
