@@ -22,6 +22,7 @@ Backend de tareas construido con NestJS, Prisma ORM y PostgreSQL, siguiendo los 
   - [Validación de entrada](#validación-de-entrada)
   - [Seguridad de la contraseña](#seguridad-de-la-contraseña)
 - [Integración con Notification Service](#integración-con-notification-service)
+- [WebSocket — Notificaciones en Tiempo Real](#websocket--notificaciones-en-tiempo-real)
 - [API Endpoints](#api-endpoints)
 - [Swagger](#swagger)
 - [Árbol de Módulos](#árbol-de-módulos)
@@ -770,6 +771,159 @@ async create(userId: string, dto: CreateTodoDto) {
 # .env
 NOTIFICATION_SERVICE_URL=http://localhost:3060  # Local
 # En Docker: http://notification:3060 (nombre del servicio en compose)
+```
+
+### Flujo completo
+
+```
+┌─────────────┐     POST /api/todo      ┌──────────────┐
+│   Frontend   │ ──────────────────────→ │    Backend    │
+│  (React)     │                         │  (NestJS)     │
+└──────┬──────┘                         └──────┬───────┘
+       │                                       │
+       │  WebSocket "notification"             │  POST /notifications
+       │  ← ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │  (HTTP interno)
+       │                                       │
+       │                                       ▼
+       │                                ┌──────────────┐
+       │                                │  Notification │
+       │                                │  (NestJS)     │
+       │                                └──────────────┘
+```
+
+1. Frontend envía `POST /api/todo` al backend
+2. Backend crea la tarea y llama a `NotificationPort.send()`
+3. `HttpNotificationAdapter` hace `POST` al notification service
+4. Notification service guarda en MongoDB y emite vía WebSocket
+5. Frontend recibe la notificación en tiempo real
+
+---
+
+## WebSocket — Notificaciones en Tiempo Real
+
+### Gateway (Notification Service)
+
+El notification service expone un WebSocket Gateway con Socket.IO:
+
+```typescript
+// packages/notification/src/apps/api/notification.gateway.ts
+@WebSocketGateway({ cors: { origin: '*' } })
+export class NotificationGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
+  @WebSocketServer()
+  server: Server;
+
+  // El cliente se une a una room al conectarse
+  handleConnection(client: Socket) {
+    const userId = client.handshake.query.userId as string;
+    if (userId) {
+      client.join(`user:${userId}`);
+    }
+  }
+
+  // Evento "join" para unirse a la room del usuario
+  @SubscribeMessage('join')
+  handleJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { userId: string },
+  ) {
+    client.join(`user:${data.userId}`);
+    return { event: 'joined', data: { userId: data.userId } };
+  }
+
+  // Enviar notificación a un usuario específico
+  sendNotificationToUser(userId: string, notification: unknown) {
+    this.server.to(`user:${userId}`).emit('notification', notification);
+  }
+}
+```
+
+### Protocolo WebSocket
+
+| Evento | Dirección | Payload | Descripción |
+|--------|-----------|---------|-------------|
+| `join` | Frontend → Server | `{ userId: string }` | Unirse a la room del usuario |
+| `joined` | Server → Frontend | `{ userId: string }` | Confirmación de unión |
+| `notification` | Server → Frontend | `Notification` | Nueva notificación en tiempo real |
+
+### Modelo de notificación
+
+```typescript
+interface Notification {
+  id: string;
+  userId: string;
+  type: "TASK_CREATED" | "TASK_COMPLETED" | "TASK_DUE_SOON";
+  title: string;
+  message: string;
+  metadata: Record<string, unknown>;
+  read: boolean;
+  createdAt: string;
+}
+```
+
+### Frontend — Hook `useNotifications`
+
+El frontend consume el WebSocket via un custom hook:
+
+```typescript
+// packages/frontend/src/hooks/useNotifications.ts
+const WS_URL = import.meta.env.VITE_WS_URL || '';
+
+export function useNotifications() {
+  const { token, user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unread, setUnread] = useState(0);
+  const [connected, setConnected] = useState(false);
+
+  // 1. Cargar notificaciones existentes vía REST
+  useEffect(() => {
+    fetch(`${WS_URL.replace(/^ws/, "http")}/notifications/${user.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(res => res.json()).then(setNotifications);
+  }, []);
+
+  // 2. Conexión WebSocket
+  useEffect(() => {
+    const socket = io(WS_URL, {
+      query: { userId: user.id },
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 3000,
+    });
+
+    socket.on("connect", () => {
+      setConnected(true);
+      socket.emit("join", { userId: user.id });
+    });
+
+    socket.on("notification", (notification: Notification) => {
+      setNotifications((prev) => [notification, ...prev]);
+      setUnread((prev) => prev + 1);
+    });
+
+    return () => socket.disconnect();
+  }, [user, token]);
+
+  return { notifications, unread, connected, markAsRead, markAllAsRead };
+}
+```
+
+### Configuración de conexión
+
+| Parámetro | Valor | Descripción |
+|-----------|-------|-------------|
+| `transports` | `["websocket", "polling"]` | Intenta WebSocket primero, fallback a HTTP polling |
+| `reconnection` | `true` | Reconexión automática al perder conexión |
+| `reconnectionDelay` | `3000` | Espera 3 segundos entre intentos |
+| `query.userId` | `user.id` | Se envía en el handshake para unirse a la room |
+
+### Variables de entorno (Frontend)
+
+```env
+# packages/frontend/.env
+VITE_WS_URL=http://localhost:3060    # Notification service
+# En Docker: ws://IP_PUBLICA:3060
 ```
 
 ---
