@@ -9,11 +9,11 @@ WORKDIR /app
 
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
 COPY packages/frontend/package.json ./packages/frontend/
-RUN pnpm install --frozen-lockfile --filter todo-frontend
+RUN pnpm install --frozen-lockfile --prod=false --filter todo-frontend
 
 COPY packages/frontend/ ./packages/frontend/
 WORKDIR /app/packages/frontend
-RUN npx vite build
+RUN pnpm exec vite build
 
 # --- Production stage ---
 FROM nginx:alpine

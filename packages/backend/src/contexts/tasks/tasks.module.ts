@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TodoModule } from './todo/todo.module';
+import { CategoryModule } from './category/category.module';
 
 @Module({
-  imports: [TodoModule],
+  imports: [TodoModule, CategoryModule],
   controllers: [],
   providers: [],
+  exports: [CategoryModule],
 })
 export class TasksModule {}
