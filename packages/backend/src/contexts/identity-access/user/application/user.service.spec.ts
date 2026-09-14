@@ -3,6 +3,11 @@ import { User } from '../domain/user.entity';
 import { UserRepository } from '../domain/user.repository';
 import { UserService } from './user.service';
 import { NotificationPort } from 'src/contexts/tasks/todo/domain/notification.port';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 
 describe('UserService', () => {
   let service: UserService;
@@ -29,6 +34,8 @@ describe('UserService', () => {
             create: jest.fn(),
             findByEmail: jest.fn(),
             findById: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
           },
         },
         {
@@ -91,6 +98,97 @@ describe('UserService', () => {
           'caller-id',
         ),
       ).rejects.toThrow('User with this email already exists');
+    });
+  });
+
+  describe('getOne', () => {
+    it('retorna un usuario seguro por id', async () => {
+      userRepository.findById.mockResolvedValue(mockUser);
+
+      const result = await service.getOne(mockUser.id);
+      expect(result.id).toBe(mockUser.id);
+      expect(result).not.toHaveProperty('password');
+    });
+
+    it('lanza NotFoundException si no existe', async () => {
+      userRepository.findById.mockResolvedValue(null);
+
+      await expect(service.getOne('missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('update', () => {
+    it('permite actualizar al propio usuario', async () => {
+      const updated = new User(
+        mockUser.id,
+        mockUser.email,
+        'Nuevo Nombre',
+        mockUser.password,
+        mockUser.role,
+        mockUser.status,
+      );
+      userRepository.findById.mockResolvedValue(mockUser);
+      userRepository.update.mockResolvedValue(updated);
+
+      const result = await service.update(
+        mockUser.id,
+        { name: 'Nuevo Nombre' },
+        { id: mockUser.id, role: 'CLIENT' },
+      );
+
+      expect(result).not.toHaveProperty('password');
+      expect(userRepository.update).toHaveBeenCalledWith(
+        mockUser.id,
+        { name: 'Nuevo Nombre' }
+      );
+    });
+
+    it('bloquea update de otro usuario cuando no es admin', async () => {
+      userRepository.findById.mockResolvedValue(mockUser);
+
+      await expect(
+        service.update(
+          mockUser.id,
+          { name: 'X' },
+          { id: 'other-user', role: 'CLIENT' },
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('delete', () => {
+    it('solo admin puede eliminar', async () => {
+      await expect(
+        service.delete(mockUser.id, { id: 'u1', role: 'CLIENT' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('admin elimina usuario existente', async () => {
+      userRepository.findById.mockResolvedValue(mockUser);
+      userRepository.delete.mockResolvedValue(undefined);
+
+      const result = await service.delete(mockUser.id, {
+        id: 'admin',
+        role: 'ADMIN',
+      });
+      expect(result).toEqual({ message: 'User deleted successfully' });
+      expect(userRepository.delete).toHaveBeenCalledWith(
+        mockUser.id,
+      );
+    });
+
+    it('lanza ConflictException cuando hay relaciones asociadas', async () => {
+      userRepository.findById.mockResolvedValue(mockUser);
+      userRepository.delete.mockRejectedValue(new Error('foreign key'));
+
+      await expect(
+        service.delete(mockUser.id, {
+          id: 'admin',
+          role: 'ADMIN',
+        }),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });
