@@ -11,8 +11,8 @@ describe('CategoryService', () => {
 
   const mockCategory = {
     id: '1',
-    name: 'Test Category',
-    color: 'Rojo',
+    name: 'Trabajo',
+    color: '#FF5733',
     userId: 'user-1',
   };
 
@@ -49,7 +49,7 @@ describe('CategoryService', () => {
   });
 
   describe('findAll', () => {
-    it('returns all categorys', async () => {
+    it('returns all categories', async () => {
       repository.findAll.mockResolvedValue([mockCategory]);
 
       const result = await service.findAll();
@@ -79,57 +79,44 @@ describe('CategoryService', () => {
       repository.create.mockResolvedValue(mockCategory);
 
       const result = await service.create('user-1', {
-        title: 'Test category',
-        description: 'Test description',
+        name: 'Trabajo',
+        color: '#FF5733',
       });
       expect(result).toEqual(mockCategory);
       expect(repository.create).toHaveBeenCalledWith({
-        title: 'Test category',
-        description: 'Test description',
-        completed: false,
+        name: 'Trabajo',
+        color: '#FF5733',
         userId: 'user-1',
-        dueDate: null,
       });
       expect(notificationPort.send).toHaveBeenCalledWith({
         userId: 'user-1',
         type: 'TASK_CREATED',
-        title: 'Nueva tarea',
-        message: 'Se creó la tarea "Test category"',
-        metadata: { taskId: '1' },
+        title: 'Nueva Categoria',
+        message: 'Se creó la categoría "Trabajo"',
+        metadata: { categoryId: '1' },
       });
     });
   });
 
   describe('update', () => {
-    it('updates a category and sends TASK_COMPLETED notification', async () => {
-      const updated = { ...mockCategory, completed: true };
+    it('updates a category', async () => {
+      const updated = { ...mockCategory, name: 'Personal' };
       repository.getOne.mockResolvedValue(mockCategory);
       repository.update.mockResolvedValue(updated);
 
-      const result = await service.update('1', { completed: true });
+      const result = await service.update('1', { name: 'Personal' });
       expect(result).toEqual(updated);
-      expect(notificationPort.send).toHaveBeenCalledWith({
-        userId: 'user-1',
-        type: 'TASK_COMPLETED',
-        title: 'Tarea completada',
-        message: 'La tarea "Test category" fue completada',
-        metadata: { taskId: '1' },
+      expect(repository.update).toHaveBeenCalledWith('1', {
+        name: 'Personal',
+        color: undefined,
       });
-    });
-
-    it('does not send notification when completed does not change', async () => {
-      repository.getOne.mockResolvedValue(mockCategory);
-      repository.update.mockResolvedValue(mockCategory);
-
-      await service.update('1', { title: 'New title' });
-      expect(notificationPort.send).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when category not found', async () => {
       repository.getOne.mockResolvedValue(null);
 
       await expect(
-        service.update('999', { completed: true }),
+        service.update('999', { name: 'Test' }),
       ).rejects.toThrow(NotFoundException);
     });
   });
