@@ -29,13 +29,13 @@ export class CategoryService {
       userId,
     });
 
-    /* await this.notificationPort.send({
+    await this.notificationPort.send({
       userId,
       type: 'TASK_CREATED',
-      title: 'Nueva tarea',
-      message: `Se creó la tarea "${dto.title}"`,
-      metadata: { taskId: category.id },
-    }); */
+      title: 'Nueva Categoria',
+      message: `Se creó la categoría "${dto.name}"`,
+      metadata: { categoryId: category.id },
+    });
 
     return category;
   }
@@ -43,22 +43,10 @@ export class CategoryService {
   async update(id: string, dto: UpdateCategoryData) {
     const existing = await this.getOne(id);
     
-    const updated = await this.categoryRepository.update(id,{
+    const updated = await this.categoryRepository.update(id, {
       name: dto.name,
       color: dto.color,
     });
-
-    /*if (dto.completed !== undefined && dto.completed !== existing.completed) {
-      if (dto.completed) {
-        await this.notificationPort.send({
-          userId: existing.userId,
-          type: 'TASK_COMPLETED',
-          title: 'Tarea completada',
-          message: `La tarea "${existing.title}" fue completada`,
-          metadata: { taskId: id },
-        });
-      }
-    } */
 
     return updated;
   }

@@ -12,12 +12,14 @@ interface User {
 }
 
 export default function UsersPage() {
-  const { token } = useAuth();
+  const { token, user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: "", name: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ email: "", name: "", role: "", status: "" });
 
   const load = async () => {
     setLoading(true);
@@ -48,6 +50,56 @@ export default function UsersPage() {
       showToast(err instanceof Error ? err.message : "Error al crear", "error");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const canEdit = (userId: string) => {
+    return currentUser?.id === userId || currentUser?.role === "ADMIN";
+  };
+
+  const canDelete = () => {
+    return currentUser?.role === "ADMIN";
+  };
+
+  const startEdit = (user: User) => {
+    setEditingId(user.id);
+    setEditForm({
+      email: user.email,
+      name: user.name || "",
+      role: user.role,
+      status: user.status,
+    });
+  };
+
+  const handleSave = async () => {
+    if (!editingId) return;
+    try {
+      await api(`/api/users/${editingId}`, {
+        method: "PATCH",
+        body: {
+          email: editForm.email,
+          name: editForm.name || null,
+          role: editForm.role,
+          status: editForm.status,
+        },
+        token,
+      });
+      setEditingId(null);
+      showToast("Usuario actualizado", "success");
+      load();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Error al actualizar", "error");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Estás seguro de eliminar este usuario?")) return;
+    try {
+      await api(`/api/users/${id}`, { method: "DELETE", token });
+      showToast("Usuario eliminado", "success");
+      load();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Error al eliminar", "error");
     }
   };
 
@@ -110,49 +162,127 @@ export default function UsersPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">
-                  Email
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">
-                  Nombre
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">
-                  Rol
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-gray-700">
-                  Estado
-                </th>
+                <th className="text-left px-4 py-3 font-medium text-gray-700">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-700">Nombre</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-700">Rol</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-700">Estado</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-700">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {users.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-900">{u.email}</td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {u.name || "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        u.role === "ADMIN"
-                          ? "bg-purple-100 text-purple-700"
-                          : "bg-gray-100 text-gray-700"
-                      }`}
-                    >
-                      {u.role}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        u.status === "ACTIVE"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-red-100 text-red-700"
-                      }`}
-                    >
-                      {u.status}
-                    </span>
-                  </td>
+                  {editingId === u.id ? (
+                    <>
+                      <td className="px-4 py-3">
+                        <input
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, email: e.target.value })
+                          }
+                          className="w-full px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <input
+                          type="text"
+                          value={editForm.name}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, name: e.target.value })
+                          }
+                          className="w-full px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={editForm.role}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, role: e.target.value })
+                          }
+                          className="w-full px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="CLIENT">CLIENT</option>
+                          <option value="ADMIN">ADMIN</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={editForm.status}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, status: e.target.value })
+                          }
+                          className="w-full px-2 py-1 border border-blue-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="ACTIVE">ACTIVE</option>
+                          <option value="BLOCKED">BLOCKED</option>
+                        </select>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={handleSave}
+                            className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                          >
+                            Guardar
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="px-2 py-1 text-gray-500 text-xs hover:text-gray-700 transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-4 py-3 text-gray-900">{u.email}</td>
+                      <td className="px-4 py-3 text-gray-500">{u.name || "—"}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                            u.role === "ADMIN"
+                              ? "bg-purple-100 text-purple-700"
+                              : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                            u.status === "ACTIVE"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {u.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          {canEdit(u.id) && (
+                            <button
+                              onClick={() => startEdit(u)}
+                              className="px-2 py-1 text-blue-600 text-xs hover:text-blue-800 transition-colors"
+                            >
+                              Editar
+                            </button>
+                          )}
+                          {canDelete() && u.id !== currentUser?.id && (
+                            <button
+                              onClick={() => handleDelete(u.id)}
+                              className="px-2 py-1 text-red-600 text-xs hover:text-red-800 transition-colors"
+                            >
+                              Eliminar
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

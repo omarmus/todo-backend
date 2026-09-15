@@ -22,10 +22,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-@ApiTags('Category')
+@ApiTags('Categories')
 @ApiBearerAuth('jwt')
 @UseGuards(JwtAuthGuard)
-@Controller('category')
+@Controller('categories')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
