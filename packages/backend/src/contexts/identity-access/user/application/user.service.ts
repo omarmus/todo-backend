@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { UserRepository } from '../domain/user.repository';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { UserRepository, UpdateUserData } from '../domain/user.repository';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import * as argon2 from 'argon2';
 import { toSafeUser, toSafeUsers } from '../domain/user.entity';
 import { NotificationPort } from 'src/contexts/tasks/todo/domain/notification.port';
@@ -15,6 +20,14 @@ export class UserService {
   async findAll() {
     const users = await this.userRepository.findAll();
     return toSafeUsers(users);
+  }
+
+  async findOne(id: string) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+    return toSafeUser(user);
   }
 
   async create(dto: CreateUserDto, userId: string) {
@@ -47,5 +60,40 @@ export class UserService {
     });
 
     return toSafeUser(user);
+  }
+
+  async update(id: string, dto: UpdateUserDto, currentUser: { id: string; role: string }) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    // Solo el propio usuario o un admin puede actualizar
+    if (currentUser.id !== id && currentUser.role !== 'ADMIN') {
+      throw new ForbiddenException('You can only update your own profile');
+    }
+
+    const updateData: UpdateUserData = {};
+    if (dto.email !== undefined) updateData.email = dto.email;
+    if (dto.name !== undefined) updateData.name = dto.name;
+    if (dto.role !== undefined) updateData.role = dto.role;
+    if (dto.status !== undefined) updateData.status = dto.status;
+
+    const updated = await this.userRepository.update(id, updateData);
+    return toSafeUser(updated);
+  }
+
+  async delete(id: string, currentUser: { id: string; role: string }) {
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    // Solo un admin puede eliminar
+    if (currentUser.role !== 'ADMIN') {
+      throw new ForbiddenException('Only admins can delete users');
+    }
+
+    await this.userRepository.delete(id);
   }
 }
