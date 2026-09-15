@@ -82,6 +82,7 @@
       "^src/(.*)$": "<rootDir>/$1",
       "^@nestjs/jwt$": "<rootDir>/__mocks__/@nestjs/jwt.js",
       "^@nestjs/passport$": "<rootDir>/__mocks__/@nestjs/passport.js",
+      "^@nestjs/swagger$": "<rootDir>/__mocks__/@nestjs/swagger.js",
       "^passport-jwt$": "<rootDir>/__mocks__/passport-jwt.js",
       "^argon2$": "<rootDir>/__mocks__/argon2.js"
     },
