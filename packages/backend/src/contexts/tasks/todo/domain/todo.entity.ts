@@ -6,5 +6,6 @@ export class Todo {
     public readonly completed: boolean,
     public readonly userId: string,
     public readonly dueDate: Date | null,
+    public readonly categoryId: string | null,
   ) {}
 }

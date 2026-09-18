@@ -29,6 +29,7 @@ export class TodoService {
       completed: false,
       userId,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      categoryId: dto.categoryId ?? null,
     });
 
     await this.notificationPort.send({
@@ -52,6 +53,7 @@ export class TodoService {
             ? new Date(dto.dueDate as string | Date)
             : null
           : undefined,
+      categoryId: dto.categoryId,
     };
     const updated = await this.todoRepository.update(id, data);
 

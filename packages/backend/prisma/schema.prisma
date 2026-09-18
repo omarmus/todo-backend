@@ -30,6 +30,7 @@ model User {
   role Role @default(CLIENT)
   status UserStatus @default(ACTIVE)
   todos Todo[]
+  categories Category[]
 }
 
 model Todo {
@@ -39,5 +40,18 @@ model Todo {
   completed Boolean @default(false)
   dueDate DateTime?
   userId String
+  categoryId String?
   user User @relation(fields: [userId], references: [id])
+  category   Category? @relation(fields: [categoryId], references: [id])
+}
+
+model Category {
+  id     String @id @default(uuid())
+  name   String @unique
+  color  String?
+  userId String
+
+  user User @relation(fields: [userId], references: [id])
+
+  todos Todo[]
 }

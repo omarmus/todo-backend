@@ -6,6 +6,7 @@ export interface CreateTodoData {
   completed: boolean;
   userId: string;
   dueDate?: Date | null;
+  categoryId?: string | null;
 }
 
 export interface UpdateTodoData {
@@ -13,6 +14,7 @@ export interface UpdateTodoData {
   description?: string;
   completed?: boolean;
   dueDate?: string | Date | null;
+  categoryId?: string | null;
 }
 
 export abstract class TodoRepository {

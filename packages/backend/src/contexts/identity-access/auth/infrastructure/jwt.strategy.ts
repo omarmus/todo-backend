@@ -16,8 +16,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly userRepository: UserRepository,
     private readonly config: ConfigService,
   ) {
+    const fromBearerToken = (
+      ExtractJwt as unknown as {
+        fromAuthHeaderAsBearerToken: () => (request: unknown) => string | null;
+      }
+    ).fromAuthHeaderAsBearerToken();
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: fromBearerToken,
       ignoreExpiration: false,
       secretOrKey: config.get<string>('JWT_SECRET'),
     });

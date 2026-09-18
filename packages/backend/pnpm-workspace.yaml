@@ -1,8 +1,8 @@
 allowBuilds:
-  '@prisma/engines': set this to true or false
+  '@prisma/engines': true
   '@scarf/scarf': true
   '@swc/core': true
   argon2: true
   esbuild: true
-  prisma: set this to true or false
+  prisma: true
   unrs-resolver: true
